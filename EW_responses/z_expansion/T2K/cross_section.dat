@@ -1,0 +1,5 @@
+Units: momentum (GeV), cross  section (10^  38 cm2/(nucleon x GeV))
+bin number    cosTheta min    cosTheta max    momentum min    momentum max    measured xsec 
+0     1      0      0      0.3    0.255394
+1     1      0      0.3    0.4    0.207948
+2     1      0      0.4   30      0.000271813
