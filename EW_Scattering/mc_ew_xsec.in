@@ -2,7 +2,7 @@
 128              # number of walkers
 1000.   30.0      # ee theta
 400.0  100        # wmax,nw
-0				 # intf : 1 body xsec if eq to 0, otherwise compute 12b interference
+1				 # intf : 1 body xsec if eq to 0, otherwise compute 12b interference
 225.0             # xpf
 12                # xA
 0                 # i_fg : Fermi gas if eq to 1

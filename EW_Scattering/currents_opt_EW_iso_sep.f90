@@ -312,15 +312,10 @@ subroutine hadr_tens(res)
          do i=1,4
             do j=1,4
                res(i,j)=res(i,j)+J_mu_dag(f1,i1,i)*J_mu(f1,i1,j)
-               !write(6,*) i,j, res(i,j)
              enddo  
          enddo
       enddo
    enddo
-
-!   res(1,4)=(w/q(4))*res(1,1)
-!   res(4,1)=(w/q(4))*res(1,1)
-!   res(4,4)=(w/q(4))**2*res(1,1)
 
   
   return
@@ -331,8 +326,6 @@ subroutine lept_tens(lept)
    integer*4 :: i1,f1,i,j
    complex*16 :: J_mu(2,2,4),J_mu_dag(2,2,4)
    complex*16 :: lept(4,4)
-
-   
 
    do i1=1,2
       do f1=1,2
@@ -354,8 +347,6 @@ subroutine lept_tens(lept)
       enddo
    enddo
 
-   !write(6,*)'lept = ', lept
- 
   return
 end subroutine lept_tens
 
@@ -529,13 +520,7 @@ subroutine det_Jpi(gep)
   return
 end subroutine 
 
-
-
-
-
-
-
-   subroutine det_J1Jdel_exc(res,nuc1_iso)
+subroutine det_J1Jdel_exc(res,nuc1_iso)
    implicit none
    integer*4 :: i1,f1,i2,f2,i,j,it1,it2
    integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
@@ -572,14 +557,12 @@ end subroutine
 
 
          do i=1,4
-            !J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
             
             Je_12a(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_a_mu(:,:,i),up1(i1,:)))
             Je_12a_dag(f1,i1,i)=conjg(Je_12a(f1,i1,i))
             !
             Je_12b(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_b_mu(:,:,i),up1(i1,:)))
             Je_12b_dag(f1,i1,i)=conjg(Je_12b(f1,i1,i))
-
 
             Je_12c(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(Je_c_mu(:,:,i),up2(i1,:)))
             Je_12c_dag(f1,i1,i)=conjg(Je_12c(f1,i1,i))
@@ -627,16 +610,14 @@ end subroutine
     ctc = ctc + IDeltaCdag(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:))
    enddo
 
+   !write(6,*)'ctb = ', ctb
+   !write(6,*)'ctc = ', ctc
+
    res=j1jb(:,:)*ctb +j1jc(:,:)*ctc
 
    !res=j1jb(:,:)*(8.0d0/3.0d0) +j1jc(:,:)*(8.0d0/3.0d0) 
      
    !res_re = res + conjg(res)
-
-  ! res_re(1,4)=(w/q(4))*res_re(1,1)
-  ! res_re(4,1)=(w/q(4))*res_re(1,1)
-  ! res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
 
    return
  end subroutine det_J1Jdel_exc
@@ -677,7 +658,6 @@ subroutine det_JdelJdel_exc(res_re)
 
 
          do i=1,4
-            !J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
             
             Je_12a(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_a_mu(:,:,i),up1(i1,:)))
             Je_12a_dag(f1,i1,i)=conjg(Je_12a(f1,i1,i))
@@ -722,11 +702,6 @@ subroutine det_JdelJdel_exc(res_re)
 
      
    res_re = res + conjg(res)
-
-  ! res_re(1,4)=(w/q(4))*res_re(1,1)
-  ! res_re(4,1)=(w/q(4))*res_re(1,1)
-  ! res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
 
    return
  end subroutine det_JdelJdel_exc
@@ -820,6 +795,10 @@ subroutine det_JdelJdel_exc(res_re)
     ctp = ctp - Ivminus(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:)) 
    enddo
 
+   !write(6,*)'ctf = ', ctf
+   !write(6,*)'cts = ', cts
+   !write(6,*)'ctp = ', ctp
+
    j1jf(:,:)=j1jf(:,:)*(ctf)
    j1js(:,:)=j1js(:,:)*(cts)
    j1jp(:,:)=j1jp(:,:)*(ctp)
@@ -834,10 +813,6 @@ subroutine det_JdelJdel_exc(res_re)
    
      
    !res_re = res + conjg(res)
-
-!   res_re(1,4)=(w/q(4))*res_re(1,1)
-!   res_re(4,1)=(w/q(4))*res_re(1,1)
-!   res_re(4,4)=(w/q(4))**2*res_re(1,1)
 
    return
  end subroutine det_J1Jpi_exc
@@ -904,14 +879,10 @@ subroutine det_JdelJdel_exc(res_re)
    j1js(:,:)=j1js(:,:)*(2.0d0)
 
    res=j1jf(:,:) +j1js(:,:)
-   !res= +j1js(:,:)
    
      
    res_re = res + conjg(res)
 
-!   res_re(1,4)=(w/q(4))*res_re(1,1)
-!   res_re(4,1)=(w/q(4))*res_re(1,1)
-!   res_re(4,4)=(w/q(4))**2*res_re(1,1)
 
    return
  end subroutine det_J1Jpi_exc_nr
@@ -951,12 +922,6 @@ subroutine det_JdelJdel_exc(res_re)
 
    res_re = res !+ conjg(res)
    
-
- !  res(1,4)=(w/q(4))*res(1,1)
- !  res(4,1)=(w/q(4))*res(1,1)
- !  res(4,4)=(w/q(4))**2*res(1,1)
-
-  
   return
 end subroutine det_J1J1_nr
 

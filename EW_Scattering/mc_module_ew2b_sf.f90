@@ -229,7 +229,7 @@ end subroutine
 
 subroutine f_eval(ee,p1,ip1,ie1,w,sig)
   use mathtool
-  use dirac_matrices
+  use dirac_matrices, only: define_lept_spinors, lepton_current_init, lept_tens, contract !Don't want to accidently use saved variables
   implicit none
   integer*4 :: ip1,ie1
   real*8 :: ee,ctpp1,p2,ctp2,phip2,p1,ctp1,phip1,w,q2
