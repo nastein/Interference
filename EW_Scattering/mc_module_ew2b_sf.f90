@@ -235,8 +235,8 @@ subroutine f_eval(ee,p1,ip1,ie1,w,sig)
   real*8 :: ee,ctpp1,p2,ctp2,phip2,p1,ctp1,phip1,w,q2
   real*8 :: cos_theta,jac_c,qval,kdotq,elept,xklept
   real*8 :: tnl2,sig0,delta,rho,rhop
-  real*8 :: qp(4), q(4), kprobe_4(4), klept_4(4), sig(2), contraction(2)
-  complex*16 :: lepton_tens(4,4), r_now(2,4,4)
+  real*8 :: qp(4), q(4), kprobe_4(4), klept_4(4), sig(2), re_contraction(2)
+  complex*16 :: lepton_tens(4,4), r_now(2,4,4), contraction(2)
 
   !  p2=ran()*xpf   to be used to mediate with a RFG on particle 2
   p2=ran()*xpmax
@@ -280,7 +280,10 @@ subroutine f_eval(ee,p1,ip1,ie1,w,sig)
   contraction(1) = contract(r_now(1,:,:),lepton_tens)
   contraction(2) = contract(r_now(2,:,:),lepton_tens)
 
-  sig(:)=sig0*(contraction(:))*1.e15 !1e-15 fm^2
+  re_contraction(1) = contraction(1)
+  re_contraction(2) = contraction(2) + conjg(contraction(2))
+
+  sig(:)=sig0*(re_contraction(:))*1.e15 !1e-15 fm^2
   return
 
 end subroutine f_eval
@@ -412,15 +415,17 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    endif
 
    had_intf = had_del + had_pi
-   had_intf = (had_intf + conjg(had_intf))
+   !had_intf = (had_intf + conjg(had_intf))
 
-   exc(1)=had_intf(1,1)
-   exc(2)=-0.5d0*(had_intf(1,4) + had_intf(4,1))
-   exc(3)=had_intf(4,4)!had_del(4,4) + had_pi(4,4)
-   exc(4)=had_intf(2,2) + had_intf(3,3)!had_del(2,2)+had_del(3,3)+had_pi(2,2)+had_pi(3,3)
-   exc(5)=-0.5d0*ci*(had_intf(2,3) - had_intf(3,2))!-0.5d0*ci*(had_del(2,3) - had_del(3,2) + had_pi(2,3) - had_pi(3,2))
+   !exc(1)=had_intf(1,1)
+   !exc(2)=-0.5d0*(had_intf(1,4) + had_intf(4,1))
+   !exc(3)=had_intf(4,4)!had_del(4,4) + had_pi(4,4)
+   !exc(4)=had_intf(2,2) + had_intf(3,3)!had_del(2,2)+had_del(3,3)+had_pi(2,2)+had_pi(3,3)
+   !exc(5)=-0.5d0*ci*(had_intf(2,3) - had_intf(3,2))!-0.5d0*ci*(had_del(2,3) - had_del(3,2) + had_pi(2,3) - had_pi(3,2))
 
-   write(6,*) exc
+   !exc = exc + conjg(exc)
+
+   !write(6,*) exc
 
     dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
 
