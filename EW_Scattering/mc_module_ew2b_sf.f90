@@ -412,7 +412,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    endif
 
    had_intf = had_del + had_pi
-   had_intf = (had_intf + conjg(had_intf))*sqrt(2.0d0)
+   had_intf = (had_intf + conjg(had_intf))
 
 
     dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
