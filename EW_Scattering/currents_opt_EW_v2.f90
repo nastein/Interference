@@ -197,7 +197,7 @@ subroutine det_Ja(f1v,f2v,ffa,ffp)
   complex*16 :: J_1_V(4,4,4),J_1_A(4,4,4)
   
   
-  do mu=1,4J
+  do mu=1,4
      J_1_V(:,:,mu)=czero
      J_1_A(:,:,mu)=czero
      do nu=1,4
