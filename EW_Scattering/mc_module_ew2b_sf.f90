@@ -372,8 +372,6 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
 !....Pauli blocking
    pp1=sqrt(sum(pp1_4(2:4)**2))
    
-   !!!!!!!!!!!!!!!!!!!!!!
-   !Commenting out pauli blocking for a moment
    if(pp1.lt.xpf) then   
       r_now=0.0d0
       return
