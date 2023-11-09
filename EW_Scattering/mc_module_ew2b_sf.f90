@@ -414,6 +414,13 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    had_intf = had_del + had_pi
    had_intf = (had_intf + conjg(had_intf))
 
+   exc(1)=had_intf(1,1)
+   exc(2)=-0.5d0*(had_intf(1,4) + had_intf(4,1))
+   exc(3)=had_intf(4,4)!had_del(4,4) + had_pi(4,4)
+   exc(4)=had_intf(2,2) + had_intf(3,3)!had_del(2,2)+had_del(3,3)+had_pi(2,2)+had_pi(3,3)
+   exc(5)=-0.5d0*ci*(had_intf(2,3) - had_intf(3,2))!-0.5d0*ci*(had_del(2,3) - had_del(3,2) + had_pi(2,3) - had_pi(3,2))
+
+   write(6,*) exc
 
     dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
 
