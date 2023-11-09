@@ -228,16 +228,15 @@ subroutine mc_eval(ee,w,sig_avg_tot,sig_err_tot)
 end subroutine   
 
 subroutine f_eval(ee,p1,ip1,ie1,w,sig)
-   use mathtool
+  use mathtool
+  use dirac_matrices
   implicit none
   integer*4 :: ip1,ie1
   real*8 :: ee,ctpp1,p2,ctp2,phip2,p1,ctp1,phip1,w,q2
   real*8 :: cos_theta,jac_c,qval,kdotq,elept,xklept
-  real*8 :: v_ll,v_cc,v_cl,v_t,v_tp
   real*8 :: tnl2,sig0,delta,rho,rhop
-  real*8 :: qp(4), sig(2), r_now(2,5)
-
-
+  real*8 :: qp(4), q(4), kprobe_4(4), klept_4(4), sig(2), contraction(2)
+  complex*16 :: lepton_tens(4,4), r_now(2,4,4)
 
   !  p2=ran()*xpf   to be used to mediate with a RFG on particle 2
   p2=ran()*xpmax
@@ -251,30 +250,37 @@ subroutine f_eval(ee,p1,ip1,ie1,w,sig)
   xklept = sqrt(elept**2 - xmmu**2)
   cos_theta=cos(thetalept)
 
-  sig0 = (G_F*cb/hbarc)**2 /(2.0d0*pi)*xklept/2.0d0/ee
+  sig0 = (G_F*cb/hbarc)**2 /(2.0d0*pi)*xklept*elept/sqrt(2.0d0)
 
   q2=2.0d0*ee*elept - 2.0d0*ee*xklept*cos_theta - xmmu**2
-  !write(6,*)'q2 = ', q2
+
   if(q2.lt.0.0d0) stop
   qval=sqrt(q2+w**2)
   kdotq = xmmu**2/2.0d0 + ee*w - (w**2 - qval**2)/2.0d0
-  !write(6,*)'kdotq = ', kdotq
 
   qp(1)=ee+elept
   qp(4)=2.0d0*kdotq/qval - qval
   qp(3)=0.0d0 
   qp(2)=2.0d0*sqrt(ee**2 - kdotq**2/qval**2)
 
-  v_cc=qp(1)**2-qval**2-xmmu**2
-  v_cl=-(-qp(1)*qp(4)+w*qval)
-  v_ll=qp(4)**2-qval**2+q2+xmmu**2
-  v_t=qp(2)**2/2.0d0+q2+xmmu**2
-  v_tp=(qp(1)*qval-w*qp(4))
+  q(1)=w
+  q(2)=0.0d0 
+  q(3)=0.0d0 
+  q(4)=qval
+
+  kprobe_4=(q+qp)/2.0d0 
+  klept_4=(qp-q)/2.0d0
+
+  call lepton_current_init(kprobe_4, klept_4)
+  call define_lept_spinors()
+  call lept_tens(lepton_tens)
 
   call int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
 
-  sig(:)=sig0*(v_cc*r_now(:,1)+2.0d0*v_cl*r_now(:,2)+v_ll*r_now(:,3)+&
-   & v_t*r_now(:,4) + 2.0d0*v_tp*r_now(:,5))*1.e15 !1e-15 fm^2
+  contraction(1) = contract(r_now(1,:,:),lepton_tens)
+  contraction(2) = contract(r_now(2,:,:),lepton_tens)
+
+  sig(:)=sig0*(contraction(:))*1.e15 !1e-15 fm^2
   return
 
 end subroutine f_eval
@@ -297,10 +303,10 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2,tkin_pf,u_pq
    real*8 :: dir(5)
-   complex*16 :: had_del(4,4),had_pi(4,4),had_del_del(4,4)
+   complex*16 :: had_del(4,4),had_pi(4,4),had_intf(4,4)
    complex*16 :: exc(5)
    complex*16 :: res(4,4)
-   real*8 :: r_now(2,5)
+   complex*16 :: r_now(2,4,4)
    real*8 :: f_1p,f_1n,f_2p,f_2n,f_A,f_P,ff1v,ff2v
 
 
@@ -365,7 +371,6 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    ff1v=f_1p-f_1n
    ff2v=f_2p-f_2n
    !f_P = 0.0d0
-
       
 !....at this point we can define pp1_4
    pp1_4(:)=p1_4(:)+q_4(:)
@@ -379,10 +384,8 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
       return
    endif  
 
-
    !...define pp2
    pp2_4(:)=p2_4(:)
-
    
 !...define pion momenta
    k1_4(:)=pp1_4(:)-p1_4(:)
@@ -408,22 +411,11 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
       call det_J1Jpi_exc(had_pi,-1)
    endif
 
+   had_intf = had_del + had_pi
 
-   dir(1) = res(1,1)
-   dir(2) = -0.5d0*(res(1,4) + res(4,1))
-   dir(3) = res(4,4)
-   dir(4) = res(2,2) + res(3,3)
-   dir(5) = -ci*0.5d0*(res(2,3) - res(3,2))
- 
-   
-   exc(1)=had_del(1,1)+had_pi(1,1)
-   exc(2)=-0.5d0*(had_del(1,4) + had_del(4,1) + had_pi(1,4) + had_pi(4,1))
-   exc(3)=had_del(4,4) + had_pi(4,4)
-   exc(4)=had_del(2,2)+had_del(3,3)+had_pi(2,2)+had_pi(3,3)
-   exc(5)=-0.5d0*ci*(had_del(2,3) - had_del(3,2) + had_pi(2,3) - had_pi(3,2))
+   res = res + conjg(res)
+   had_intf = had_intf + conjg(had_intf)
 
-
-    exc = exc + conjg(exc)
 
     dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
 
@@ -436,27 +428,25 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
        dp2=dp2*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
     endif
 
-   
 
       !ONEBODY
       if(i_intf.ne.1) then
-         r_now(1,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*dir(:)*pp1_4(1)  &  
+         r_now(1,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*res(:,:)*pp1_4(1)  &  
          &     /(p1*qval)/(2.0d0*pi)**3!/(norm/(dble(xA)/2.0d0)) !*dp2*p2**2*(4.0d0*pi)/(4.0d0*pi*xpf**3/3.0d0)  
          ! note that since I am using the MF SF I can't compute the 1b contribution in a correct way
 
-         r_now(2,:) = 0.0d0
+         r_now(2,:,:) = 0.0d0
 
       !TWOBODY
       else
-         r_now(1,:) = 0.0d0
+         r_now(1,:,:) = 0.0d0
 
-         r_now(2,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(-exc(:))*pp1_4(1)  &
+         r_now(2,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(-had_intf(:,:))*pp1_4(1)  &
          &     /(p1*qval)/(2.0d0*pi)**3 *dp2*p2**2*(4.0d0*pi*xpmax)/(2.0d0*pi)**3 ! use xpf  to mediate with a RFG on particle 2
       endif
       
      return
 end subroutine   
-
 
 
 

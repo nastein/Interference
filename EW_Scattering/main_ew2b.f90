@@ -90,7 +90,7 @@ program ew_2body
 
    xmavg = (xmn+xmp)/2.0d0
    allocate(w(nw),sig(2,nw),sig_err(2,nw))
-   call dirac_matrices_in(xmd,xmavg,xmpi)
+   call dirac_matrices_in(xmd,xmavg,xmpi,0.0d0,105.658357d0)
 
    !compute the cross section 
    call mc_init(i_intf,i_fg,i_fsi,irn,nev,nwlk,xpf,thetalept,xmpi,xmd,xmavg,xA,np,ne,nk_fname)
