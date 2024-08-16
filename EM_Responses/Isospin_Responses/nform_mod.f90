@@ -74,7 +74,7 @@
      G_D=1.0d0/(1.0d0+Q2G/Lambdasq)**2
      G_A=-gan1/(1.0d0+Q2G/MAsq)**2
 
-     ichoice=2
+     ichoice=1
 !     
      if(ichoice.eq.1)then
 !             

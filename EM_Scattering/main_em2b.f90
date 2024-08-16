@@ -6,8 +6,8 @@ program em_2body
    
    implicit none
    real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
-   real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0
-   integer*4 :: nw,nev,i,xA,i_fg,np,ne,j,i_fsi,nwlk,nwfold,i_intf
+   real*8, parameter :: xmd=1232.25d0,xmn=938.91875d0,xmpi=139.5701799d0
+   integer*4 :: nw,nev,i,xA,i_fg,np,ne,j,i_fsi,nwlk,nwfold,i_intf,i_exc,i_dir
    integer*8, allocatable :: irn(:),irn0(:)   
    real*8 :: wmax,ee,thetalept,xpf,hw
    real*8, allocatable :: sig(:,:),sig_err(:,:),w(:)
@@ -25,6 +25,8 @@ program em_2body
       read(5,*) ee,thetalept      
       read(5,*) wmax,nw
       read(5,*) i_intf
+      read(5,*) i_exc
+      read(5,*) i_dir
       read(5,*) xpf
       read(5,*) xA
       read(5,*) i_fg
@@ -42,8 +44,8 @@ program em_2body
       en_char=adjustl(en_char)
       en_char=trim(en_char)  
 
-      fname='C12_QMC_FSI_EM_2b_CC_'//trim(en_char)//'_'//trim(theta_char)//'.out'
-      !fname='test.out'
+      !fname='C12_QMC_EM_12b_'//trim(en_char)//'_'//trim(theta_char)//'_nodir.out'
+      fname='test.out'
       fname=trim(fname)
       open(unit=7, file=fname)
    endif   
@@ -55,6 +57,8 @@ program em_2body
    call bcast(ee)
    call bcast(thetalept)
    call bcast(i_intf)
+   call bcast(i_exc)
+   call bcast(i_dir)
    call bcast(xpf)
    call bcast(xA)
    call bcast(i_fg)
@@ -89,7 +93,7 @@ program em_2body
    call dirac_matrices_in(xmd,xmn,xmpi)
 
    !Initialize currents and spinors, i_intf determines 1 and 2b intf calculation
-   call mc_init(i_intf,i_fg,i_fsi,irn,nev,nwlk,xpf,thetalept,xmpi,xmd,xmn,xA,np,ne,nk_fname)
+   call mc_init(i_intf,i_exc,i_dir,i_fg,i_fsi,irn,nev,nwlk,xpf,thetalept,xmpi,xmd,xmn,xA,np,ne,nk_fname)
 
 
    
@@ -101,7 +105,7 @@ program em_2body
       if (myrank().eq.0) then      
       !! I want only the electromagnetic
         write(6,*) 'wval and ph sp', w(i), sig(1,i),sig(2,i)
-        !write(7,*)w(i), sig(1,i),sig(2,i)
+        write(7,*)w(i), sig(1,i),sig(2,i)
         !flush(7)
       endif  
    enddo

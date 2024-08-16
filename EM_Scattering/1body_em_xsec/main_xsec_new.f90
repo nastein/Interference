@@ -36,7 +36,7 @@ program response_ia
     en_char=adjustl(en_char)
     en_char=trim(en_char)
 
-    fname='C12_QMC_RT_'//trim(en_char)//'_'//trim(theta_char)//'.out'
+    fname='C12_CBF_em_'//trim(en_char)//'_'//trim(theta_char)//'.out'
     fname=trim(fname)
 
 ! write normalized responses on file
@@ -61,8 +61,8 @@ program response_ia
     !.... read the spectral function
     !...if I want to read the full table...
     if(fg.ne.1)then
-       if(1==0) then
-           open(unit=4,file='normalized_pke16.data',status='unknown',form='formatted') 
+       if(1==1) then
+           open(unit=4,file='pke12_tot.data',status='unknown',form='formatted') 
            read(4,*) iemax, nbox
            write(6,*)'iemax = ', iemax, ', nbox = ', nbox
            allocate(p(nbox),pke(iemax,nbox),dp(nbox),xe(iemax))
@@ -88,7 +88,7 @@ program response_ia
            pke=pke*he
            pke=pke/dble(nZ)
         endif
-        if(1==1) then
+        if(1==0) then
            open(unit=4,file='Pke_c12_sep.out',status='unknown',form='formatted')
            read(4,*) nbox, iemax
            allocate(p(nbox),pke(iemax,nbox),xe(iemax),dp(nbox))
@@ -172,11 +172,11 @@ program response_ia
              
              epf=sqrt(mqe**2+pf**2)
              !...Next line is for Pauli blocking
-             if(pf.ge.kf) then
+             !if(pf.ge.kf) then
                 !...iform decides which form factor we want to use
                 call cc1(qval/hbarc,w(i),wt(i),p(j)/hbarc,pf/hbarc,ee,thetalept,iform,sig)
                 sigma(i)=sigma(i)+p(j)**2*pke(ie,j)*(dble(nZ)*sig)*epf/(p(j)*qval)
-             endif
+             !endif
           enddo
        enddo
        sigma(i)=sigma(i)*hp*1.e9

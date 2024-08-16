@@ -102,7 +102,7 @@
       at=(qm2/q2/2.0d0+tan2)
 
 !.....Subroutine computing form factors 
-      call nform(ig,qmt2,ff1s,ff2s,ff1v,ff2v,ges,gms,gev,gmv)
+      call nform(ig,qm2,ff1s,ff2s,ff1v,ff2v,ges,gms,gev,gmv)
       ff1p=0.5d0*(ff1v+ff1s)
       ff2p=0.5d0*(ff2v+ff2s)
       ff1n=0.5d0*(-ff1v+ff1s)

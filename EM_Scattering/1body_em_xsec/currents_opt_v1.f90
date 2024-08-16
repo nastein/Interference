@@ -61,8 +61,8 @@ subroutine define_spinors()
     up1=czero
     upp1=czero
 !.......initialize normalization factors
-    cp1=sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
-    cpp1=sqrt((pp1(1)+xmn)/(2.0d0*pp1(1)))
+    cp1=1.0d0!sqrt((p1(1)+xmn)/(2.0d0*p1(1)))
+    cpp1=1.0d0!sqrt((pp1(1)+xmn)/(2.0d0*pp1(1)))
 !.....define sigma*p
     do i=1,3
       sigp1=sigp1+sig(i,:,:)*p1(i+1)
@@ -165,8 +165,8 @@ subroutine det_res1b(rl,rt)
       enddo
    enddo
    
-   rl = 0.0d0
-   !rl=((qval**2 /Q2)**2)*(res(1,1) - (w/qval)*(res(1,4) + res(4,1)) + (w**2 / qval**2)*res(4,4))
+   !rl = 0.0d0
+   rl=((qval**2 /Q2)**2)*(res(1,1) - (w/qval)*(res(1,4) + res(4,1)) + (w**2 / qval**2)*res(4,4))
    !rl=res(1,1)
    !rt = 0.0d0
    rt=res(2,2)+res(3,3) 

@@ -60,7 +60,7 @@
      mu_n = -1.91315d0  ! neutron magnetic moment
      Q2G = Q2*hc*hc
      tau = Q2G/4./pm/pm
-     gan1= 1.2723d0
+     gan1= 1.2694d0
 !
 !    Omar's value 
 !    Lambdasq = 0.71
@@ -78,7 +78,7 @@
      
 
      ichoice=2
-     iaxial_choice=1
+     iaxial_choice=0
 !     
      if(ichoice.eq.1)then
 !             

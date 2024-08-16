@@ -1,6 +1,7 @@
 module mc_module
    implicit none
    integer*4, private, save :: nev,xA,i_fg,i_fsi,np,ne,nwlk,npot,np_del,i_intf
+   integer*4, private, save :: i_exc, i_dir
    integer*4, private, parameter :: neq=10000,nvoid=100
    real*8, private, save ::  xpf,xpmax
    real*8, private, save:: xmpi,xmd,xmn,norm,qval
@@ -11,14 +12,15 @@ module mc_module
    integer*8, private, allocatable, save :: irn(:)
 contains
 
-subroutine mc_init(i_intf_in,i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,qval_in,xmpi_in,xmd_in,xmn_in,xA_in, &
-     &  np_in,ne_in,nk_fname_in)
+subroutine mc_init(i_intf_in,i_exc_in,i_dir_in, &
+   &  i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in, &
+   &  xpf_in,qval_in,xmpi_in,xmd_in,xmn_in,xA_in, np_in,ne_in,nk_fname_in)
 
   use mathtool
    implicit none
    integer*8 :: irn_in(nwlk_in)
    integer*4 :: nev_in,nwlk_in,xA_in,i_fg_in,np_in,i,j,ne_in,np0,ne0,ien,i_intf_in
-   integer*4 :: ipot,i_fsi_in
+   integer*4 :: ipot,i_fsi_in,i_exc_in,i_dir_in
    real*8 :: xpf_in,xmpi_in,xmd_in,xmn_in,mlept_in,hp,he,qval_in,dummy
    real*8, allocatable :: pv0(:),dp0(:,:),ep0(:)
    character*40 :: nk_fname_in
@@ -26,6 +28,8 @@ subroutine mc_init(i_intf_in,i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,qval_
    nev=nev_in
    nwlk=nwlk_in
    i_intf=i_intf_in
+   i_dir=i_dir_in
+   i_exc=i_exc_in
    xpf=xpf_in
    xmpi=xmpi_in
    xmd=xmd_in
@@ -123,7 +127,7 @@ subroutine mc_init(i_intf_in,i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,qval_
 
 
      if(i_fsi.eq.1)then
-       open(8, file='../../EM_responses/FSI/realOP_12C_EDAI.dat')
+       open(8, file='../../FSI/realOP_12C_EDAI.dat')
        read(8,*) npot
        allocate(kin(npot),pot(npot))
        do ipot=1,npot
@@ -236,9 +240,7 @@ subroutine f_eval(p1,ip1,ie1,w,resp)
   real*8 :: tnl2,sig0,delta,rho,rhop
   real*8 :: resp(2,5)
 
-
-  !p2=ran()*xpf !  to be used to mediate with a RFG on particle 2
-  p2=ran()*xpmax  ! to be used to mediate with a SF on particle 2
+  p2=ran()*xpmax  
 
   ctp2=-1.0d0+2.0d0*ran()
   phip2=2.0d0*pi*ran()
@@ -267,10 +269,12 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
    real*8 :: r_cc_int,r_cl_int,r_ll_int,r_t_int,r_tp_int  
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2,tkin_pf,u_pq
-   real*8 :: dir(5)
-   real*8 :: had_del_p(4,4),had_pi_p(4,4),had_del_del(4,4)
-   real*8 :: had_del_n(4,4),had_pi_n(4,4)
-   real*8 :: exc(5),r_now(2,5),res_p(4,4),res_n(4,4)
+   real*8 :: onebody(5)
+   real*8 :: had_del_p_dir(4,4),had_pi_p_dir(4,4)
+   real*8 :: had_del_n_dir(4,4),had_pi_n_dir(4,4)
+   real*8 :: had_del_p_exc(4,4),had_pi_p_exc(4,4)
+   real*8 :: had_del_n_exc(4,4),had_pi_n_exc(4,4)
+   real*8 :: dir(5),exc(5),r_now(2,5),res_p(4,4),res_n(4,4)
    real*8 :: f_1p,f_1n,f_2p,f_2n,f_A,f_P
 
 
@@ -283,7 +287,8 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
    p1_4(1)=sqrt(p1**2+xmn**2)
 
    if(i_fg.eq.1) then
-      q_4(1)= w - 20.0d0
+      !q_4(1)= w - 20.0d0
+      q_4(1) = w
    else
       q_4(1)=w-p1_4(1)-ep(ie1)+xmn  
    endif
@@ -329,6 +334,10 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
 
    ca5=0.0d0!1.20d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
 !   ffgnd=gep/sqrt(1.0d0-q2/(xmn+xmd)**2)/sqrt(1.0d0-q2/l3)
+   !cv3 = 0.0d0 
+   cv4 = 0.0d0  
+   cv5 = 0.0d0
+   !ca5 = 0.0d0
    rho=xpf**3/(1.5d0*pi**2)
 
    !Note for EM we do not use F_A or F_P, just here for consistency
@@ -348,64 +357,117 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
    !...define pp2
    pp2_4(:)=p2_4(:)
 
-   
-   !...delta function
-!    arg=q_4(1)+p1_4(1)-pp1_4(1)
-!   delta_w=fdelta(arg,eps)
 !...define pion momenta
    k1_4(:)=pp1_4(:)-p1_4(:)
    k2_4(:)=q_4(:)-k1_4(:)
-   !k1e_4(:)=pp2_4(:)-p1_4(:)
-   !k2e_4(:)=q_4(:)-k1e_4(:)
 
-!   k1e_4(:)=pp2_4(:)-p1_4(:) 
-!   k2e_4(:)= pp1_4(:)-p2_4(:)
    k1e_4(:)=pp2_4(:)-p1_4(:) 
-   k2e_4(:)= pp1_4(:)-p2_4(:)
+   k2e_4(:)=pp1_4(:)-p2_4(:)
 
-   had_pi_p=0.d0
-   had_del_p=0.0d0
-   had_pi_n=0.d0
-   had_del_n=0.0d0
-   had_del_del=0.0d0
+   had_pi_p_dir=0.0d0
+   had_del_p_dir=0.0d0
+   had_pi_n_dir=0.0d0
+   had_del_n_dir=0.00d0
+
+   had_pi_p_exc=0.0d0
+   had_del_p_exc=0.00d0
+   had_pi_n_exc=0.0d0
+   had_del_n_exc=0.0d0
    
 !.......currents
-   call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1e_4,k2e_4,2)
+   !.... direct
+   call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1_4,k2_4,1)
    call define_spinors()
    call det_Ja(f_1p,f_2p)
    call hadr_tens(res_p)
 
-   if(i_intf.eq.1) then   
+   if(i_intf.eq.1 .and. i_dir.eq.1) then   
       call det_Jpi(gep-gen)
       call det_JaJb_JcJd(cv3,cv4,cv5,ca5,np_del,pdel,pot_del)
-      call det_J1Jdel_exc(had_del_p,1)
-      call det_J1Jpi_exc(had_pi_p,1)
+      call det_J1Jdel_dir(had_del_p_dir,1)
+      call det_J1Jpi_dir(had_pi_p_dir,1)
    endif
    
    call det_Ja(f_1n,f_2n)
    call hadr_tens(res_n)
 
-   if(i_intf.eq.1) then
-      call det_J1Jdel_exc(had_del_n,-1)
-      call det_J1Jpi_exc(had_pi_n,-1)
+   if(i_intf.eq.1 .and. i_dir.eq.1) then
+      call det_J1Jdel_dir(had_del_n_dir,-1)
+      call det_J1Jpi_dir(had_pi_n_dir,-1)
+   endif
+
+   if(i_intf.eq.1 .and. i_exc.eq.1) then
+      !.... exchange
+      call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1e_4,k2e_4,2)
+      call define_spinors()
+      call det_Ja(f_1p,f_2p)
+
+      call det_Jpi(gep-gen)
+      call det_JaJb_JcJd(cv3,cv4,cv5,ca5,np_del,pdel,pot_del)
+      call det_J1Jdel_exc(had_del_p_exc,1)
+      call det_J1Jpi_exc(had_pi_p_exc,1)
+     
+      call det_Ja(f_1n,f_2n)
+      call det_J1Jdel_exc(had_del_n_exc,-1)
+      call det_J1Jpi_exc(had_pi_n_exc,-1)
    endif
 
 
-   dir(1) = res_p(1,1)+res_n(1,1)
-   dir(2) = 0.0d0
-   dir(3) = 0.0d0
-   dir(4) = res_p(2,2) + res_p(3,3) + res_n(2,2) + res_n(3,3)
-   dir(5) = 0.0d0
+   onebody(1) = res_p(1,1)+res_n(1,1)
+   onebody(2) = 0.0d0
+   onebody(3) = 0.0d0
+   onebody(4) = res_p(2,2) + res_p(3,3) + res_n(2,2) + res_n(3,3)
+   onebody(5) = 0.0d0
  
+   exc(:)=0.0d0 
+   dir(:)=0.0d0
+
+   !Pion pieces only
+   exc(1)=had_pi_n_exc(1,1)+had_pi_p_exc(1,1)
+   exc(4)=had_pi_n_exc(2,2)+had_pi_n_exc(3,3)+ &
+     &  had_pi_p_exc(2,2)+had_pi_p_exc(3,3) 
+
+   !dir(1)=had_pi_n_dir(1,1)+had_pi_p_dir(1,1)
+   !dir(4)=had_pi_n_dir(2,2)+had_pi_n_dir(3,3)+ &
+   !   &  had_pi_p_dir(2,2)+had_pi_p_dir(3,3)  
+
+   !Delta pieces only
+   !exc(1)=had_del_n_exc(1,1)+had_del_p_exc(1,1)
+   !exc(4)=had_del_n_exc(2,2)+had_del_n_exc(3,3)+ &
+   !   &  had_del_p_exc(2,2)+had_del_p_exc(3,3) 
+
+   !dir(1)=had_del_n_dir(1,1)+had_del_p_dir(1,1)
+   !dir(4)=had_del_n_dir(2,2)+had_del_n_dir(3,3)+ &
+   !   &  had_del_p_dir(2,2)+had_del_p_dir(3,3)
    
-   exc(1)=had_del_n(1,1)+had_pi_n(1,1)+had_del_p(1,1)+had_pi_p(1,1)!
-   exc(2)=0.0d0
-   exc(3)=0.0d0
-   exc(4)=had_del_n(2,2)+had_del_n(3,3)+had_pi_n(2,2)+had_pi_n(3,3)+had_del_p(2,2)+had_del_p(3,3)+had_pi_p(2,2)+had_pi_p(3,3) 
-   exc(5)=0.0d0
+   !exc(1)=had_del_n_exc(1,1)+had_pi_n_exc(1,1)+had_del_p_exc(1,1)+had_pi_p_exc(1,1)
+   !exc(2)=0.0d0
+   !exc(3)=0.0d0
+   !exc(4)=had_del_n_exc(2,2)+had_del_n_exc(3,3)+ &
+   !   &  had_pi_n_exc(2,2)+had_pi_n_exc(3,3)+ &
+   !   &  had_del_p_exc(2,2)+had_del_p_exc(3,3)+ &
+   !   &  had_pi_p_exc(2,2)+had_pi_p_exc(3,3) 
+   !exc(5)=0.0d0
+
+   !exc(:)=1.0d0
+
+   !dir(1)=had_del_n_dir(1,1)+had_pi_n_dir(1,1)+had_del_p_dir(1,1)+had_pi_p_dir(1,1)!
+   !dir(2)=0.0d0
+   !dir(3)=0.0d0
+   !dir(4)=had_del_n_dir(2,2)+had_del_n_dir(3,3)+ &
+   !   &  had_pi_n_dir(2,2)+had_pi_n_dir(3,3)+ &
+   !   &  had_del_p_dir(2,2)+had_del_p_dir(3,3)+ &
+   !   &  had_pi_p_dir(2,2)+had_pi_p_dir(3,3)  
+   !dir(5)=0.0d0
 
 
-    dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
+
+
+    if(i_fg.eq.1) then
+      dp1 = PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)
+    else
+      dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0)) 
+    endif
 
   !    dp2=1 !to be used to mediate with a RFG on particle 2
 
@@ -420,7 +482,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
 
       !ONEBODY
       if(i_intf.ne.1)then
-         r_now(1,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*dir(:)*pp1_4(1)  &  
+         r_now(1,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*onebody(:)*pp1_4(1)  &  
          &     /(p1*qval)/(2.0d0*pi)**3!/(norm/(dble(xA)/2.0d0)) !*dp2*p2**2*(4.0d0*pi)/(4.0d0*pi*xpf**3/3.0d0)  
 ! note that since I am using the MF SF I can't compute the 1b contribution in a correct way
          r_now(2,:) = 0.0d0
@@ -432,7 +494,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,r_now)
       else
          r_now(1,:) = 0.0d0
 
-         r_now(2,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(-exc(:))*pp1_4(1)  &
+         r_now(2,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(-exc(:) + dir(:))*pp1_4(1)  &
          &     /(p1*qval)/(2.0d0*pi)**3 *dp2*p2**2*(4.0d0*pi*xpmax)/(2.0d0*pi)**3 ! use xpf  to mediate with a RFG on particle 2
       endif
       

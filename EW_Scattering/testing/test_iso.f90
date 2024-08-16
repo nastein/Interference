@@ -14,7 +14,7 @@ program test_iso
    test_p4 = (/0.0d0, 0.0d0, 0.0d0, 0.0d0/)
 
 
-   call dirac_matrices_in(938.0d0,938.0d0,100.0d0)
+   call dirac_matrices_in(938.0d0,938.0d0,100.0d0,0.0d0,0.0d0)
    call current_init(w,test_p4,test_p4,test_p4,test_p4,test_p4,test_p4,test_p4,2)
    call define_spinors()
 
@@ -32,40 +32,84 @@ program test_iso
    !Ivminus is called Ivminus(it1,it2,itp1,itp2)
 
    result = -Ivminus(p,p,n,p)
-   write(6,*) '<np | Iv^dag | pp> = ', result
+   !write(6,*) '<n1p2 | Iv^dag | p2p1> = ', result
 
    result = -Ivminus(n,p,n,n)
-   write(6,*) '<nn | Iv^dag | np> = ', result
+   !write(6,*) '<n1n2 | Iv^dag | n2p1> = ', result
 
    Write(6,*) '12 -> 21 exchange:'
-   result2 = IDeltaB(p,p,n,p)
-   write(6,*) '<pp | DeltaB | np> = ', result2
+      result2 = IDeltaBdag(p,p,n,p)
+   write(6,*) '<n1p2 | DeltaB^dag | p2p1> = ', result2
 
-   result2 = IDeltaB(n,p,n,n)
-   write(6,*) '<np | DeltaB | nn> = ', result2
+   result2 = IDeltaBdag(n,p,n,n)
+   write(6,*) '<n1n2 | DeltaB^dag | n2p1> = ', result2
 
    Write(6,*) '21 -> 12 exchange:'
-   result2 = IDeltaB(p,p,p,n)
-   write(6,*) '<pp | DeltaB | pn> = ', result2
+   result2 = IDeltaDdag(p,p,p,n)
+   write(6,*) '<p2n1 | DeltaD^dag | p1p2> = ', result2
 
-   result2 = IDeltaB(p,n,n,n)
-   write(6,*) '<pn | DeltaB | nn> = ', result2
+   result2 = IDeltaDdag(p,n,n,n)
+   write(6,*) '<n2n1 | DeltaD^dag | p1n2> = ', result2
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   Write(6,*) '12 -> 21 exchange:'
+   result2 = IDeltaDdag(p,p,n,p)
+   write(6,*) '<n1p2 | DeltaD^dag | p2p1> = ', result2
+
+   result2 = IDeltaDdag(n,p,n,n)
+   write(6,*) '<n1n2 | DeltaD^dag | n2p1> = ', result2
+
+   Write(6,*) '21 -> 12 exchange:'
+   result2 = IDeltaBdag(p,p,p,n)
+   write(6,*) '<p2n1 | DeltaB^dag | p1p2> = ', result2
+
+   result2 = IDeltaBdag(p,n,n,n)
+   write(6,*) '<n2n1 | DeltaB^dag | p1n2> = ', result2
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    Write(6,*) '12 -> 21 exchange:'
-   result2 = IDeltaC(p,p,n,p)
-   write(6,*) '<pp | DeltaC | np> = ', result2
+   result2 = IDeltaCdag(p,p,n,p)
+   write(6,*) '<n1p2 | DeltaC^dag | p2p1> = ', result2
 
-   result2 = IDeltaC(n,p,n,n)
-   write(6,*) '<np | DeltaC | nn> = ', result2
+   result2 = IDeltaCdag(n,p,n,n)
+   write(6,*) '<n1n2 | DeltaC^dag | n2p1> = ', result2
 
    Write(6,*) '21 -> 12 exchange:'
-   result2 = IDeltaC(p,p,p,n)
-   write(6,*) '<pp | DeltaC | pn> = ', result2
+   result2 = IDeltaAdag(p,p,p,n)
+   write(6,*) '<p2n1 | DeltaA^dag | p1p2> = ', result2
 
-   result2 = IDeltaC(p,n,n,n)
-   write(6,*) '<pn | DeltaC | nn> = ', result2
+   result2 = IDeltaAdag(p,n,n,n)
+   write(6,*) '<n2n1 | DeltaA^dag | p1n2> = ', result2
+
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   Write(6,*) '12 -> 21 exchange:'
+   result2 = IDeltaAdag(p,p,n,p)
+   write(6,*) '<n1p2 | DeltaA^dag | p2p1> = ', result2
+
+   result2 = IDeltaAdag(n,p,n,n)
+   write(6,*) '<n1n2 | DeltaA^dag | n2p1> = ', result2
+
+   Write(6,*) '21 -> 12 exchange:'
+   result2 = IDeltaCdag(p,p,p,n)
+   write(6,*) '<p2n1 | DeltaC^dag | p1p2> = ', result2
+
+   result2 = IDeltaCdag(p,n,n,n)
+   write(6,*) '<n2n1 | DeltaC^dag | p1n2> = ', result2
+
+
+
+   
+
+   
+
+
+   
+
+   
 end program test_iso
 
 

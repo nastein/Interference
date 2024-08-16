@@ -1,6 +1,6 @@
 module mc_module
    implicit none
-   integer*4, private, save :: nev,xA,i_fg,i_fsi,np,ne,nwlk,npot,np_del,i_intf
+   integer*4, private, save :: nev,xA,i_fg,i_fsi,np,ne,nwlk,npot,np_del,i_intf,i_exc,i_dir
    integer*4, private, parameter :: neq=10000,nvoid=100
    real*8, private, save ::  xpf,xpmax
    real*8, private, save:: xmpi,xmd,xmn,norm,thetalept
@@ -13,14 +13,16 @@ module mc_module
    integer*8, private, allocatable, save :: irn(:)
 contains
 
-subroutine mc_init(i_intf_in,i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,thetalept_in,xmpi_in,xmd_in,xmn_in,xA_in, &
-     &  np_in,ne_in,nk_fname_in)
+subroutine mc_init(i_intf_in,i_exc_in,i_dir_in, &
+   &  i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,&
+   &  thetalept_in,xmpi_in,xmd_in,xmn_in,xA_in, &
+   &  np_in,ne_in,nk_fname_in)
 
   use mathtool
    implicit none
    integer*8 :: irn_in(nwlk_in)
    integer*4 :: nev_in,nwlk_in,xA_in,i_fg_in,np_in,i,j,ne_in,np0,ne0,ien,i_intf_in
-   integer*4 :: ipot,i_fsi_in
+   integer*4 :: ipot,i_fsi_in,i_exc_in,i_dir_in
    real*8 :: xpf_in,xmpi_in,xmd_in,xmn_in,mlept_in,hp,he,thetalept_in,dummy
    real*8, allocatable :: pv0(:),dp0(:,:),ep0(:)
    character*40 :: nk_fname_in
@@ -28,6 +30,8 @@ subroutine mc_init(i_intf_in,i_fg_in,i_fsi_in,irn_in,nev_in,nwlk_in,xpf_in,theta
    nev=nev_in
    nwlk=nwlk_in
    i_intf=i_intf_in
+   i_dir=i_dir_in
+   i_exc=i_exc_in
    xpf=xpf_in
    xmpi=xmpi_in
    xmd=xmd_in
@@ -171,7 +175,7 @@ subroutine mc_eval(ee,w,sig_avg_tot,sig_err_tot)
       emax=ep(ne)-ep(1)
    endif
    
-   !
+   
    do i=1,nwlk
       call setrn(irn(i))
       do while(g_o(i).le.0.0d0)
@@ -277,10 +281,13 @@ subroutine f_eval(ee,p1,ip1,ie1,w,sig)
 
   call int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
 
+  !Contract the lepton and 1b hadron/12b hadron tensors separately
   contraction(1) = contract(r_now(1,:,:),lepton_tens)
   contraction(2) = contract(r_now(2,:,:),lepton_tens)
 
+
   re_contraction(1) = contraction(1)
+  !r12munu Lmunu + r12^* munu Lmunu
   re_contraction(2) = contraction(2) + conjg(contraction(2))
 
   sig(:)=sig0*(re_contraction(:))*1.e15 !1e-15 fm^2
@@ -297,18 +304,17 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    integer*4 :: ie1,ie2,ip1,ip2
    real*8 :: w,ctpp1,p2,ctp2,phip2,p1,ctp1,phip1,stpp1,stp1,stp2
    real*8 :: at,bt,vt,par1,par2,pp1,den,jac,arg
-   real*8 :: q2,rho,ca5,cv3,cv4,cv5,gep,gen,gmp,gmn,qval
-   real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4)
+   real*8 :: q2,q2e,rho,ca5,cv3,cv4,cv5,gep,gen,gmp,gmn,qval
+   real*8 :: p1_4(4),p2_4(4),pp1_4(4),pp2_4(4),k2_4(4),k1_4(4),q_4(4),pp_4(4),q_4e(4)
    real*8 :: k2e_4(4),k1e_4(4)
    real*8 :: r_cc_pi,r_cl_pi,r_ll_pi,r_t_pi,r_tp_pi
    real*8 :: r_cc_del,r_cl_del,r_ll_del,r_t_del,r_tp_del   
    real*8 :: r_cc_int,r_cl_int,r_ll_int,r_t_int,r_tp_int  
    real*8 :: dp1,dp2,delta_w
    real*8 :: tkin_pp1,tkin_pp2, u_pp1,u_pp2,tkin_pf,u_pq
-   real*8 :: dir(5)
-   complex*16 :: had_del(4,4),had_pi(4,4),had_intf(4,4)
-   complex*16 :: exc(5)
-   complex*16 :: res(4,4)
+   complex*16 :: had_del_dir(4,4),had_pi_dir(4,4)
+   complex*16 :: had_del_exc(4,4),had_pi_exc(4,4),had_intf(4,4)
+   complex*16 :: onebody(4,4)
    complex*16 :: r_now(2,4,4)
    real*8 :: f_1p,f_1n,f_2p,f_2n,f_A,f_P,ff1v,ff2v
 
@@ -319,13 +325,13 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    q_4(1)=w
    q_4(2:3)=0.0d0
    q_4(4)=qval
+   q_4e = q_4
    p1_4(1)=sqrt(p1**2+xmn**2)
    if(i_fg.eq.1) then
       q_4(1)= w - 20.0d0
    else
       q_4(1)=w-p1_4(1)-ep(ie1)+xmn  
    endif
-
 
 
     u_pq=0.0d0
@@ -336,6 +342,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
     endif
    ctp1=((q_4(1) + p1_4(1)-u_pq)**2-p1**2-qval**2-xmn**2)/(2.0d0*p1*qval)
    q2=q_4(1)**2-qval**2
+   q2e = q_4e(1)**2 - qval**2
 
    if(abs(ctp1).gt.1.0d0) then   
       r_now=0.0d0
@@ -365,15 +372,23 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
 
    cv5 = 0.48/(1.0d0-q2/lsq)**2/(1.0d0-q2/0.776/lsq)*sqrt(3.0d0/2.0d0)
 
-
    ca5=1.20d0/(1.0d0-q2/xma2)**2/(1.0d0-q2/3.0d0/xma2)*sqrt(3.0d0/2.0d0)
 !   ffgnd=gep/sqrt(1.0d0-q2/(xmn+xmd)**2)/sqrt(1.0d0-q2/l3)
+
+   !cv3 = 0.0d0 
+   !cv4 = 0.0d0  
+   !cv5 = 0.0d0
+   !ca5 = 0.0d0
    rho=xpf**3/(1.5d0*pi**2)
+
+
 
    call nform(-q2/hbarc**2,f_1p,f_1n,f_2p,f_2n,gep,gen,gmp,gmn,f_A,f_P)
    ff1v=f_1p-f_1n
    ff2v=f_2p-f_2n
-   !f_P = 0.0d0
+   !Setting pseudoscalar to 0 for now
+   f_P = 0.0d0
+   print*,ff1v,ff2v,f_A
       
 !....at this point we can define pp1_4
    pp1_4(:)=p1_4(:)+q_4(:)
@@ -398,34 +413,41 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
    k2e_4(:)= pp1_4(:)-p2_4(:)
 
 
-   had_pi=0.0d0
-   had_del=0.0d0
+   had_pi_dir=0.0d0
+   had_del_dir=0.0d0
+   had_pi_exc=0.0d0
+   had_del_exc=0.0d0
    
 !.......currents
-   call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1e_4,k2e_4,2)
+   !direct
+   call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1_4,k2_4,1)
    call define_spinors()
    call det_Ja(ff1v,ff2v,f_A,f_P)
-   call hadr_tens(res)
    
-   if(i_intf.eq.1) then
-      call det_Jpi(gep-gen)
-      call det_JaJb_JcJd(cv3,cv4,cv5,ca5,np_del,pdel,pot_del)
-      call det_J1Jdel_exc(had_del,-1)
-      call det_J1Jpi_exc(had_pi,-1)
+   if(i_intf.eq.0) then
+      call hadr_tens(onebody)
    endif
 
-   had_intf = had_del + had_pi
-   !had_intf = (had_intf + conjg(had_intf))
+   if(i_intf.eq.1) then 
+      if(i_dir.eq.1) then   
+         call det_Jpi(gep-gen)
+         call det_JaJb_JcJd(cv3,cv4,cv5,ca5,np_del,pdel,pot_del)
+         call det_J1Jdel_dir(had_del_dir,-1)
+         call det_J1Jpi_dir(had_pi_dir,-1)
+      endif
+      if(i_exc.eq.1) then
+         call current_init(w,p1_4,p2_4,pp1_4,pp2_4,q_4,k1e_4,k2e_4,2)
+         call define_spinors()
+         call det_Ja(ff1v,ff2v,f_A,f_P)
+         call det_Jpi(gep-gen)
+         call det_JaJb_JcJd(cv3,cv4,cv5,ca5,np_del,pdel,pot_del)
+         call det_J1Jdel_exc(had_del_exc,-1)
+         call det_J1Jpi_exc(had_pi_exc,-1) 
+      endif
+   endif
 
-   !exc(1)=had_intf(1,1)
-   !exc(2)=-0.5d0*(had_intf(1,4) + had_intf(4,1))
-   !exc(3)=had_intf(4,4)!had_del(4,4) + had_pi(4,4)
-   !exc(4)=had_intf(2,2) + had_intf(3,3)!had_del(2,2)+had_del(3,3)+had_pi(2,2)+had_pi(3,3)
-   !exc(5)=-0.5d0*ci*(had_intf(2,3) - had_intf(3,2))!-0.5d0*ci*(had_del(2,3) - had_del(3,2) + had_pi(2,3) - had_pi(3,2))
-
-   !exc = exc + conjg(exc)
-
-   !write(6,*) exc
+   !Dir - Exchange
+   had_intf = had_del_dir + had_pi_dir - had_del_exc - had_pi_exc
 
     dp1=PkE(ip1,ie1)*(4.0d0*pi*xpf**3/3.0d0)*(norm/(dble(xA)/2.0d0))
 
@@ -441,7 +463,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
 
       !ONEBODY
       if(i_intf.ne.1) then
-         r_now(1,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*res(:,:)*pp1_4(1)  &  
+         r_now(1,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*onebody(:,:)*pp1_4(1)  &  
          &     /(p1*qval)/(2.0d0*pi)**3!/(norm/(dble(xA)/2.0d0)) !*dp2*p2**2*(4.0d0*pi)/(4.0d0*pi*xpf**3/3.0d0)  
          ! note that since I am using the MF SF I can't compute the 1b contribution in a correct way
 
@@ -451,7 +473,7 @@ subroutine int_eval(p2,ctp2,phip2,p1,phip1,ip1,ie1,w,qval,r_now)
       else
          r_now(1,:,:) = 0.0d0
 
-         r_now(2,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(-had_intf(:,:))*pp1_4(1)  &
+         r_now(2,:,:) = (dble(xA)/rho)*dp1*p1**2*(2.0d0*pi)*(had_intf(:,:))*pp1_4(1)  &
          &     /(p1*qval)/(2.0d0*pi)**3 *dp2*p2**2*(4.0d0*pi*xpmax)/(2.0d0*pi)**3 ! use xpf  to mediate with a RFG on particle 2
       endif
       

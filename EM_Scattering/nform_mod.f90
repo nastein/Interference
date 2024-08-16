@@ -65,7 +65,7 @@
 !    Omar's value 
 !    Lambdasq = 0.71
 !    Rocco's value (I believe from Ciofi)
-     Lambdasq = 0.69388d0
+     Lambdasq = 0.7174d0
 !     Lambdasq = 0.840d0**2
      MAsq=1.0d0**2
 !     Masq=1.350**2

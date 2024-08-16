@@ -6,8 +6,8 @@ program em_2body
    
    implicit none
    real*8, parameter :: pi=acos(-1.0d0),hbarc=197.327053d0
-   real*8, parameter :: xmd=1236.0d0,xmn=938.0d0,xmpi=139.d0
-   integer*4 :: nw,nev,i,xA,i_fg,np,ne,j,i_fsi,nwlk,nwfold,i_intf
+   real*8, parameter :: xmd=1232.25d0,xmn=938.91875d0,xmpi=139.570179d0
+   integer*4 :: nw,nev,i,xA,i_fg,np,ne,j,i_fsi,nwlk,nwfold,i_intf,i_exc,i_dir
    integer*8, allocatable :: irn(:),irn0(:)   
    real*8 :: wmax,qval,xpf,hw
    real*8, allocatable :: resp(:,:,:),resp_err(:,:,:),w(:)
@@ -26,6 +26,8 @@ program em_2body
       read(5,*) qval      
       read(5,*) wmax,nw
       read(5,*) i_intf
+      read(5,*) i_exc
+      read(5,*) i_dir
       read(5,*) xpf
       read(5,*) xA
       read(5,*) i_fg
@@ -33,18 +35,20 @@ program em_2body
       read(5,*) np,ne
       read(5,*) i_fsi    
 
-      fname='test.out'
-      !fname='test.out'
+      !fname='bodek_results/C12_FSI_EM_1b_QMC_q570.out'
+      fname='test_FG_pif_q500_Ca_dip.out'
       fname=trim(fname)
       open(unit=7, file=fname)
    endif   
 
-
    call bcast(nev)
+   call bcast(nwlk)
    call bcast(wmax)
    call bcast(nw)
    call bcast(qval)
    call bcast(i_intf)
+   call bcast(i_exc)
+   call bcast(i_dir)
    call bcast(xpf)
    call bcast(xA)
    call bcast(i_fg)
@@ -77,7 +81,7 @@ program em_2body
    call dirac_matrices_in(xmd,xmn,xmpi)
 
    !Initialize currents and spinors, i_intf determines 1 and 2b intf calculation
-   call mc_init(i_intf,i_fg,i_fsi,irn,nev,nwlk,xpf,qval,xmpi,xmd,xmn,xA,np,ne,nk_fname)
+   call mc_init(i_intf,i_exc,i_dir,i_fg,i_fsi,irn,nev,nwlk,xpf,qval,xmpi,xmd,xmn,xA,np,ne,nk_fname)
 
 
    
@@ -89,7 +93,7 @@ program em_2body
       if (myrank().eq.0) then      
       !! I want only the electromagnetic
         write(6,*) 'wval and ph sp', w(i), resp(i_intf+1,1,i),resp(i_intf+1,4,i)
-        !write(7,*)w(i), sig(1,i),sig(2,i)
+        write(7,*)w(i), resp(i_intf+1,1,i),resp(i_intf+1,4,i)
         !flush(7)
       endif  
    enddo
@@ -99,7 +103,7 @@ program em_2body
 
 
    if(i_fsi.eq.1) then
-       open(unit=21,file='../../EM_responses/FSI/folding.in',status='unknown',form='formatted')
+       open(unit=21,file='../../FSI/folding.in',status='unknown',form='formatted')
        read(21,*)TA,hwfold,nwfold
        allocate(resp_fold(2,5,nw),wfold(nwfold),fold(nwfold))
        do i=1,nwfold

@@ -48,11 +48,13 @@
 !    Lambdasq = 0.71
 !    Rocco's value (I believe from Ciofi)
      !Lambdasq = 0.69513d0
-      Lambdasq = .840*.840
-!     Lambdasq = 0.7174d0
+!      Lambdasq = .840*.840
+     Lambdasq = 0.7174d0
      MAsq=1.0d0
 
 !     Lambdasq = 0.55d0
+
+     ichoice = 2
 
      G_D=1.0d0/(1.0d0+Q2G/Lambdasq)**2
      G_A=gan1/(1.0d0+Q2G/MAsq)**2

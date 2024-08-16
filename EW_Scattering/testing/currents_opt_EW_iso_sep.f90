@@ -12,26 +12,30 @@
     complex*16, private, save :: sig(3,2,2),id(2,2),id4(4,4),up(2),down(2)
     complex*16, private, save :: up1(2,4),up2(2,4),upp1(2,4),upp2(2,4), &
             &   ubarp1(2,4),ubarp2(2,4),ubarpp1(2,4),ubarpp2(2,4)
+    complex*16, private, save :: uk1(2,4),ukp1(2,4), &
+            &   ubark1(2,4),ubarkp1(2,4)
     complex*16, private, save :: t1(2,2),t2(2,2),t1p(2,2),t2p(2,2)
     complex*16, private, save :: gamma_mu(4,4,5),g_munu(4,4), sigma_munu(4,4,4,4)
     complex*16, private, save :: p1_sl(4,4),p2_sl(4,4),pp1_sl(4,4),pp2_sl(4,4), &
          &   k1_sl(4,4),k2_sl(4,4),q_sl(4,4), &
          &   Pi_k1(4,4),Pi_k2(4,4),Pi_k1e(4,4),Pi_k2e(4,4)
-    real*8, private, save ::  p1(4),p2(4),pp1(4),pp2(4),q(4),k1(4),k2(4)
+    real*8, private, save ::  p1(4),p2(4),pp1(4),pp2(4),q(4),k1(4),k2(4),k(4),kp(4)
     complex*16, private, save :: J_a_mu(4,4,4),J_b_mu(4,4,4),J_c_mu(4,4,4),J_d_mu(4,4,4)
     complex*16, private, save :: Je_a_mu(4,4,4),Je_b_mu(4,4,4),Je_c_mu(4,4,4),Je_d_mu(4,4,4)
     complex*16, private, save :: J_pif(4,4,4),J_sea1(4,4,4),J_sea2(4,4,4),J_pl1(4,4,4),J_pl2(4,4,4)
     complex*16, private, save :: J_1(4,4,4)    
-    real*8, private,save :: xmd,xmn,xmpi,w
+    real*8, private,save :: xmd,xmn,xmpi,w,xmlept,xmprobe 
 contains
 
-subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in)
+subroutine dirac_matrices_in(xmd_in,xmn_in,xmpi_in,xmprobe_in,xmlept_in)
     implicit none
     integer*4 :: i,j
-    real*8 :: xmd_in,xmn_in,xmpi_in
+    real*8 :: xmd_in,xmn_in,xmpi_in,xmprobe_in,xmlept_in
     xmd=xmd_in
     xmn=xmn_in
     xmpi=xmpi_in
+    xmlept=xmlept_in
+    xmprobe=xmprobe_in
     sig(:,:,:)=czero
     id(:,:)=czero
     id(1,1)=cone;id(2,2)=cone
@@ -148,8 +152,62 @@ subroutine define_spinors()
     return
 end subroutine
 
+subroutine define_lept_spinors()
+    implicit none
+    integer*4 :: i
+    complex*16 :: sigk1(2,2),sigkp1(2,2)
+    real*8 :: ck1,ckp1
+    sigk1=czero
+    sigkp1=czero
+    !.....initialize quadrispinors
+    uk1=czero
+    ukp1=czero
+!.......initialize normalization factors
+    ck1=sqrt((k(1)+xmprobe)/(2.0d0*k(1)))
+    ckp1=sqrt((kp(1)+xmlept)/(2.0d0*kp(1)))
+!.....define sigma*p
+    do i=1,3
+      sigk1=sigk1+sig(i,:,:)*k(i+1)
+      sigkp1=sigkp1+sig(i,:,:)*kp(i+1)
+    enddo
+!.....build quadri-spinors    
+    uk1(1,1:2)=up(:)
+    uk1(1,3:4)=matmul(sigk1(:,:),up(:))/(k(1)+xmprobe)
+    uk1(2,1:2)=down(:)
+    uk1(2,3:4)=matmul(sigk1(:,:),down(:))/(k(1)+xmprobe)
+    uk1(:,:)=ck1*uk1(:,:)
+!
+    ukp1(1,1:2)=up(:)
+    ukp1(1,3:4)=matmul(sigkp1(:,:),up(:))/(kp(1)+xmlept)
+    ukp1(2,1:2)=down(:)
+    ukp1(2,3:4)=matmul(sigkp1(:,:),down(:))/(kp(1)+xmlept)
+    ukp1(:,:)=ckp1*ukp1(:,:)
 
+!
+    ubark1(1,1:2)=up(:)
+    ubark1(1,3:4)=-matmul(up(:),sigk1(:,:))/(k(1)+xmprobe)
+    ubark1(2,1:2)=down(:)
+    ubark1(2,3:4)=-matmul(down(:),sigk1(:,:))/(k(1)+xmprobe)
+    ubark1(:,:)=ck1*ubark1(:,:)
 
+    ubarkp1(1,1:2)=up(:)
+    ubarkp1(1,3:4)=-matmul(up(:),sigkp1(:,:))/(kp(1)+xmlept)
+    ubarkp1(2,1:2)=down(:)
+    ubarkp1(2,3:4)=-matmul(down(:),sigkp1(:,:))/(kp(1)+xmlept)
+    ubarkp1(:,:)=ckp1*ubarkp1(:,:)
+
+    return
+end subroutine
+
+subroutine lepton_current_init(k_in,kp_in)
+    implicit none
+    real*8 :: k_in(4),kp_in(4)
+
+    k=k_in  
+    kp=kp_in
+
+    return
+end subroutine lepton_current_init
 
 subroutine current_init(win,p1_in,p2_in,pp1_in,pp2_in,q_in,k1_in,k2_in,i_fl_in)
     implicit none
@@ -254,19 +312,43 @@ subroutine hadr_tens(res)
          do i=1,4
             do j=1,4
                res(i,j)=res(i,j)+J_mu_dag(f1,i1,i)*J_mu(f1,i1,j)
-               !write(6,*) i,j, res(i,j)
              enddo  
          enddo
       enddo
    enddo
 
-!   res(1,4)=(w/q(4))*res(1,1)
-!   res(4,1)=(w/q(4))*res(1,1)
-!   res(4,4)=(w/q(4))**2*res(1,1)
-
   
   return
 end subroutine hadr_tens
+
+subroutine lept_tens(lept)
+   implicit none
+   integer*4 :: i1,f1,i,j
+   complex*16 :: J_mu(2,2,4),J_mu_dag(2,2,4)
+   complex*16 :: lept(4,4)
+
+   do i1=1,2
+      do f1=1,2
+         do i=1,4
+            J_mu(f1,i1,i)=sum(ubarkp1(f1,:)*matmul(gamma_mu(:,:,i),matmul(id4(:,:)-gamma_mu(:,:,5),uk1(i1,:))))/sqrt(2.0d0)
+            J_mu_dag(f1,i1,i)=conjg(J_mu(f1,i1,i))
+         enddo
+      enddo
+   enddo
+   
+   lept=0.0d0
+   do i1=1,2
+      do f1=1,2
+         do i=1,4
+            do j=1,4
+               lept(i,j)=lept(i,j)+J_mu_dag(f1,i1,i)*J_mu(f1,i1,j)
+            enddo   
+         enddo
+      enddo
+   enddo
+
+  return
+end subroutine lept_tens
 
 
 
@@ -438,13 +520,7 @@ subroutine det_Jpi(gep)
   return
 end subroutine 
 
-
-
-
-
-
-
-   subroutine det_J1Jdel_exc(res,nuc1_iso)
+subroutine det_J1Jdel_exc(res,nuc1_iso)
    implicit none
    integer*4 :: i1,f1,i2,f2,i,j,it1,it2
    integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
@@ -459,7 +535,7 @@ end subroutine
    complex*16 :: Je_1(2,2),Je_1_dag(2,2)   
    complex*16 :: j1ja(4,4),j1jb(4,4), j1jc(4,4),j1jd(4,4),res(4,4)
    real*8 :: res_re(4,4)
-   complex*16 :: ctb,ctc ! isospin coefficients
+   complex*16 :: cta,ctb,ctc,ctd ! isospin coefficients
 
    complex*16 :: J_mu(2,2,4)   
    do i1=1,2
@@ -481,14 +557,12 @@ end subroutine
 
 
          do i=1,4
-            !J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
             
             Je_12a(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_a_mu(:,:,i),up1(i1,:)))
             Je_12a_dag(f1,i1,i)=conjg(Je_12a(f1,i1,i))
             !
             Je_12b(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_b_mu(:,:,i),up1(i1,:)))
             Je_12b_dag(f1,i1,i)=conjg(Je_12b(f1,i1,i))
-
 
             Je_12c(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(Je_c_mu(:,:,i),up2(i1,:)))
             Je_12c_dag(f1,i1,i)=conjg(Je_12c(f1,i1,i))
@@ -511,14 +585,20 @@ end subroutine
                do i2=1,2
                   j1jb(i,j)=j1jb(i,j)+Je_12b_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2)
                   j1jc(i,j)=j1jc(i,j)+Je_12c_dag(f1,i2,i)*J_mu(f1,i1,j)*Je_1_dag(i2,i1)
+
+                  !We may need ja and jd for exlcusive case, even though they cancel for inclusive
+                  j1ja(i,j)=j1ja(i,j)+Je_12a_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2)
+                  j1jd(i,j)=j1jd(i,j)+Je_12d_dag(f1,i2,i)*J_mu(f1,i1,j)*Je_1_dag(i2,i1)
                enddo
             enddo
          enddo
       enddo
    enddo
 
+   cta=czero
    ctb=czero
    ctc=czero
+   ctd=czero
 
    if(nuc1_iso.eq.1) then
         nuc1_isospinor=up(:)
@@ -528,23 +608,25 @@ end subroutine
         nuc1p_isospinor=up(:)
    endif
    
+
+   ! We compute the complex conjugate of the exchange 
+   ! so the ordering is < 2',1'| Jdag | 1, 2 >
    do it2=1,2
-    ctb = ctb + IDeltaB(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1p_isospinor)
-    ctc = ctc + IDeltaC(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1p_isospinor)
+    cta = cta + IDeltaAdag(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:))
+    ctb = ctb + IDeltaBdag(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:))
+    ctc = ctc + IDeltaCdag(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:))
+    ctd = ctd + IDeltaDdag(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:))
    enddo
 
-   res=j1jb(:,:)*ctb +j1jc(:,:)*ctc
-   write(6,*)'ctb = ', ctb
-   write(6,*)'ctc = ', ctc
+
+   !write(6,*)'ctb = ', ctb
+   !write(6,*)'ctc = ', ctc
+
+   res=j1ja(:,:)*cta + j1jb(:,:)*ctb +j1jc(:,:)*ctc + j1jd(:,:)*ctd
 
    !res=j1jb(:,:)*(8.0d0/3.0d0) +j1jc(:,:)*(8.0d0/3.0d0) 
      
    !res_re = res + conjg(res)
-
-  ! res_re(1,4)=(w/q(4))*res_re(1,1)
-  ! res_re(4,1)=(w/q(4))*res_re(1,1)
-  ! res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
 
    return
  end subroutine det_J1Jdel_exc
@@ -585,7 +667,6 @@ subroutine det_JdelJdel_exc(res_re)
 
 
          do i=1,4
-            !J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
             
             Je_12a(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_a_mu(:,:,i),up1(i1,:)))
             Je_12a_dag(f1,i1,i)=conjg(Je_12a(f1,i1,i))
@@ -630,11 +711,6 @@ subroutine det_JdelJdel_exc(res_re)
 
      
    res_re = res + conjg(res)
-
-  ! res_re(1,4)=(w/q(4))*res_re(1,1)
-  ! res_re(4,1)=(w/q(4))*res_re(1,1)
-  ! res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
 
    return
  end subroutine det_JdelJdel_exc
@@ -717,17 +793,20 @@ subroutine det_JdelJdel_exc(res_re)
         nuc1p_isospinor=up(:)
    endif
 
+   ! Here we are computing the complex conjugate
+   ! matrix element so we need (Ivplus)^dag = -(Ivminus) 
 
+   ! We compute the complex conjugate of the exchange 
+   ! so the ordering is < 2',1'| Jdag | 1, 2 >
    do it2=1,2
-    ctf = ctf + conjg(Ivminus(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1p_isospinor)) !Want to compute matrix element of (Iv^{dag} = -Iv)
-    cts = cts + conjg(Ivminus(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1p_isospinor)) !Want to compute matrix element of (Iv^{dag} = -Iv)
-    ctp = ctp + conjg(Ivminus(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1p_isospinor)) !Want to compute matrix element of (Iv^{dag} = -Iv)
+    ctf = ctf - Ivminus(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:)) 
+    cts = cts - Ivminus(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:)) 
+    ctp = ctp - Ivminus(t2(it2,:),nuc1p_isospinor,nuc1_isospinor,t2(it2,:)) 
    enddo
 
-
-   write(6,*)'ctf= ', ctf
-   write(6,*)'cts = ', cts
-   write(6,*)'ctp = ', ctp
+   !write(6,*)'ctf = ', ctf
+   !write(6,*)'cts = ', cts
+   !write(6,*)'ctp = ', ctp
 
    j1jf(:,:)=j1jf(:,:)*(ctf)
    j1js(:,:)=j1js(:,:)*(cts)
@@ -743,10 +822,6 @@ subroutine det_JdelJdel_exc(res_re)
    
      
    !res_re = res + conjg(res)
-
-!   res_re(1,4)=(w/q(4))*res_re(1,1)
-!   res_re(4,1)=(w/q(4))*res_re(1,1)
-!   res_re(4,4)=(w/q(4))**2*res_re(1,1)
 
    return
  end subroutine det_J1Jpi_exc
@@ -813,14 +888,10 @@ subroutine det_JdelJdel_exc(res_re)
    j1js(:,:)=j1js(:,:)*(2.0d0)
 
    res=j1jf(:,:) +j1js(:,:)
-   !res= +j1js(:,:)
    
      
    res_re = res + conjg(res)
 
-!   res_re(1,4)=(w/q(4))*res_re(1,1)
-!   res_re(4,1)=(w/q(4))*res_re(1,1)
-!   res_re(4,4)=(w/q(4))**2*res_re(1,1)
 
    return
  end subroutine det_J1Jpi_exc_nr
@@ -860,12 +931,6 @@ subroutine det_JdelJdel_exc(res_re)
 
    res_re = res !+ conjg(res)
    
-
- !  res(1,4)=(w/q(4))*res(1,1)
- !  res(4,1)=(w/q(4))*res(1,1)
- !  res(4,4)=(w/q(4))**2*res(1,1)
-
-  
   return
 end subroutine det_J1J1_nr
 
@@ -899,6 +964,20 @@ subroutine delta_se(pd2,width,pot)
    return
 end subroutine
 
+function contract(tensor1,tensor2)
+    implicit none
+    integer*4 :: i,j
+    complex*16 :: tensor1(4,4),tensor2(4,4),contract
+
+    contract=0.0d0
+    do i=1,4
+        do j=1,4
+            contract = contract + g_munu(i,i)*tensor1(i,j)*tensor2(i,j)*g_munu(j,j)
+        enddo
+    enddo
+
+    return
+end function contract
 
 function Ivminus(it1,it2,itp1,itp2)
     implicit none
@@ -911,54 +990,53 @@ function Ivminus(it1,it2,itp1,itp2)
     return
 end function Ivminus
 
-
-function IDeltaA(it1,it2,itp1,itp2)
+function IDeltaAdag(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaA, c
+    complex*16 :: IDeltaAdag, c
 
     c = me(1,it2,itp2) - ci*me(2,it2,itp2)
 
-    IDeltaA = (2.*c/3.) + (Ivminus(it1,it2,itp1,itp2)/3.)
+    IDeltaAdag = (2.*c/3.) + (Ivminus(it1,it2,itp1,itp2)/3.)
 
     return
-end function IDeltaA
+end function IDeltaAdag
 
-function IDeltaB(it1,it2,itp1,itp2)
+function IDeltaBdag(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaB, c
+    complex*16 :: IDeltaBdag, c
 
     c = me(1,it2,itp2) - ci*me(2,it2,itp2)
 
-    IDeltaB = (2.*c/3.) - (Ivminus(it1,it2,itp1,itp2)/3.) 
+    IDeltaBdag = (2.*c/3.) - (Ivminus(it1,it2,itp1,itp2)/3.) 
 
     return
-end function IDeltaB
+end function IDeltaBdag
 
-function IDeltaC(it1,it2,itp1,itp2)
+function IDeltaCdag(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaC, c
+    complex*16 :: IDeltaCdag, c
 
     c = me(1,it1,itp1) - ci*me(2,it1,itp1)
 
-    IDeltaC = (2.*c/3.) - (Ivminus(it1,it2,itp1,itp2)/3.)
+    IDeltaCdag = (2.*c/3.) - (Ivminus(it1,it2,itp1,itp2)/3.)
 
     return
-end function IDeltaC
+end function IDeltaCdag
 
-function IDeltaD(it1,it2,itp1,itp2)
+function IDeltaDdag(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaD, c
+    complex*16 :: IDeltaDdag, c
 
     c = me(1,it1,itp1) - ci*me(2,it1,itp1)
 
-    IDeltaD = (2.*c/3.) + (Ivminus(it1,it2,itp1,itp2)/3.) 
+    IDeltaDdag = (2.*c/3.) + (Ivminus(it1,it2,itp1,itp2)/3.) 
 
     return
-end function IDeltaD
+end function IDeltaDdag
 
 function me(i,it,itp)
     implicit none
@@ -970,7 +1048,6 @@ function me(i,it,itp)
 
     return
 end function me
-
 
 end module dirac_matrices
 

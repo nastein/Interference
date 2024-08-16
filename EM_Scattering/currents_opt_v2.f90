@@ -21,7 +21,7 @@
     complex*16, private, save :: J_a_mu(4,4,4),J_b_mu(4,4,4),J_c_mu(4,4,4),J_d_mu(4,4,4)
     complex*16, private, save :: Je_a_mu(4,4,4),Je_b_mu(4,4,4),Je_c_mu(4,4,4),Je_d_mu(4,4,4)
     complex*16, private, save :: J_pif(4,4,4),J_sea1(4,4,4),J_sea2(4,4,4),J_pl1(4,4,4),J_pl2(4,4,4)
-    complex*16, private, save :: J_1(4,4,4)    
+    complex*16, private, save :: J_1b(4,4,4)    
     real*8, private,save :: xmd,xmn,xmpi,w
 contains
 
@@ -207,15 +207,15 @@ subroutine det_Ja(f1v,f2v)
   real*8 :: f1v,f2v  
   
   do mu=1,4
-     J_1(:,:,mu)=czero
+     J_1b(:,:,mu)=czero
      do nu=1,4
-        J_1(:,:,mu)=J_1(:,:,mu)+ci*f2v*sigma_munu(:,:,mu,nu)&
+        J_1b(:,:,mu)=J_1b(:,:,mu)+ci*f2v*sigma_munu(:,:,mu,nu)&
              &     *g_munu(nu,nu)*q(nu)/2.0d0/xmn
      enddo
-     J_1(:,:,mu)=J_1(:,:,mu)+f1v*gamma_mu(:,:,mu)
+     J_1b(:,:,mu)=J_1b(:,:,mu)+f1v*gamma_mu(:,:,mu)
 
      !Implement current conservation
-     J_1(:,:,4) = (w/q(4))*J_1(:,:,1)
+     J_1b(:,:,4) = (w/q(4))*J_1b(:,:,1)
 
   enddo
   return
@@ -233,7 +233,7 @@ subroutine hadr_tens(res)
    do i1=1,2
       do f1=1,2
          do i=1,4
-            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1(:,:,i),up1(i1,:)))
+            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
             J_mu_dag(f1,i1,i)=conjg(J_mu(f1,i1,i))
          enddo
       enddo
@@ -245,17 +245,11 @@ subroutine hadr_tens(res)
          do i=1,4
             do j=1,4
                res(i,j)=res(i,j)+J_mu_dag(f1,i1,i)*J_mu(f1,i1,j)
-               !write(6,*) i,j, res(i,j)
              enddo  
          enddo
       enddo
    enddo
 
-   !res(1,4)=(w/q(4))*res(1,1)
-   !res(4,1)=(w/q(4))*res(1,1)
-   !res(4,4)=(w/q(4))**2*res(1,1)
-
-  
   return
 end subroutine hadr_tens
 
@@ -413,7 +407,11 @@ subroutine det_Jpi(gep)
         & - 1.0d0/(k1(1)**2-sum(k1(2:4)**2)-xmpi**2)/(lpi**2-k1(1)**2+sum(k1(2:4)**2)) &
         & - 1.0d0/(k2(1)**2-sum(k2(2:4)**2)-xmpi**2)/(lpi**2-k2(1)**2+sum(k2(2:4)**2)))
    do mu=1,4
+    if(i_fl.eq.1) then
+      J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1(:,:)!*fact
+    else
       J_pif(:,:,mu)=gep*(k1(mu)-k2(mu))*Pi_k1e(:,:)!*fact
+  endif
       J_sea1(:,:,mu)=-gep*matmul(gamma_mu(:,:,5),gamma_mu(:,:,mu))!/fpik2**2
       J_sea2(:,:,mu)=gep*matmul(gamma_mu(:,:,5),gamma_mu(:,:,mu))!/fpik1**2
    enddo
@@ -424,9 +422,105 @@ subroutine det_Jpi(gep)
 end subroutine 
 
 
+subroutine det_J1Jdel_dir(res_re,nuc1_iso)
+   implicit none
+   integer*4 :: i1,i2,f1,f2,i,j,it1,it2
+   integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
+   complex*16 :: nuc1_isospinor(2)
+   complex*16 :: J_12a(2,2,4),J_12b(2,2,4)
+   complex*16 :: J_12a_dag(2,2,4),J_12b_dag(2,2,4)
+   complex*16 :: J_12c(2,2,4),J_12d(2,2,4)
+   complex*16 :: J_12c_dag(2,2,4),J_12d_dag(2,2,4)
+
+   complex*16 :: J_2(2,2),J_2_dag(2,2)
+   complex*16 :: J_1(2,2),J_1_dag(2,2)   
+   complex*16 :: j1ja(4,4),j1jb(4,4), j1jc(4,4),j1jd(4,4),res(4,4)
+   real*8 :: res_re(4,4)
+   complex*16 :: cta,ctb,ctc,ctd ! isospin coefficients
+
+   complex*16 :: J_mu(2,2,4)   
+   do i1=1,2
+      do f1=1,2
+         do i=1,4
+            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
+         enddo
+      enddo
+   enddo
+
+   do i1=1,2
+      do f1=1,2
+        do i2=1,2
+         J_1(f1,i1)=sum(ubarpp1(f1,:)*matmul(Pi_k1(:,:),up1(i1,:))) 
+         J_1_dag(f1,i1)=conjg(J_1(f1,i1))
+         J_2(i2,i2)=sum(ubarpp2(i2,:)*matmul(Pi_k2(:,:),up2(i2,:))) 
+         J_2_dag(i2,i2)=conjg(J_2(i2,i2))
+
+         do i=1,4
+            J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
+            J_12a_dag(f1,i1,i)=conjg(J_12a(f1,i1,i))
+
+            J_12b(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_b_mu(:,:,i),up1(i1,:)))
+            J_12b_dag(f1,i1,i)=conjg(J_12b(f1,i1,i))
+            
+            J_12c(i2,i2,i)=sum(ubarpp2(i2,:)*matmul(J_c_mu(:,:,i),up2(i2,:)))
+            J_12c_dag(i2,i2,i)=conjg(J_12c(i2,i2,i))
+
+            J_12d(i2,i2,i)=sum(ubarpp2(i2,:)*matmul(J_d_mu(:,:,i),up2(i2,:)))
+            J_12d_dag(i2,i2,i)=conjg(J_12d(i2,i2,i))
 
 
+         enddo
+      enddo
+  enddo
+   enddo
 
+   j1ja=czero
+   j1jb=czero
+   j1jc=czero
+   j1jd=czero
+
+   cta=czero
+   ctb=czero
+   ctc=czero
+   ctd=czero
+
+   if(nuc1_iso.eq.1) then
+        nuc1_isospinor=up(:)
+   else 
+        nuc1_isospinor=down(:)
+   endif
+   
+   do it2=1,2
+    cta = cta + IDeltaADag_EM(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:))
+    ctb = ctb + IDeltaBDag_EM(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:))
+    ctc = ctc + IDeltaCDag_EM(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:)) 
+    ctd = ctd + IDeltaDDag_EM(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:))
+   enddo 
+
+
+   do i=1,4
+      do j=1,4
+         do i1=1,2
+            do f1=1,2
+               do i2=1,2
+
+                  j1ja(i,j)=j1ja(i,j)+J_12a_dag(f1,i1,i)*J_mu(f1,i1,j)*J_2_dag(i2,i2)
+                  j1jb(i,j)=j1jb(i,j)+J_12b_dag(f1,i1,i)*J_mu(f1,i1,j)*J_2_dag(i2,i2)
+                  
+                  j1jc(i,j)=j1jc(i,j)+J_12c_dag(i2,i2,i)*J_mu(f1,i1,j)*J_1_dag(f1,i1)
+                  j1jd(i,j)=j1jd(i,j)+J_12d_dag(i2,i2,i)*J_mu(f1,i1,j)*J_1_dag(f1,i1)
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+
+   res=j1ja(:,:)*cta + j1jb(:,:)*ctb +j1jc(:,:)*ctc + j1jd(:,:)*ctd
+     
+   res_re = res + conjg(res)
+
+   return
+ end subroutine det_J1Jdel_dir
 
 
    subroutine det_J1Jdel_exc(res_re,nuc1_iso)
@@ -434,7 +528,6 @@ end subroutine
    integer*4 :: i1,f1,i2,f2,i,j,it1,it2
    integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
    complex*16 :: nuc1_isospinor(2)
-   complex*16 :: J_12a(2,2,4),J_12b(2,2,4)
    complex*16 :: Je_12a(2,2,4),Je_12b(2,2,4)   
    complex*16 :: Je_12a_dag(2,2,4),Je_12b_dag(2,2,4)
    complex*16 :: Je_12c(2,2,4),Je_12d(2,2,4)   
@@ -444,13 +537,13 @@ end subroutine
    complex*16 :: Je_1(2,2),Je_1_dag(2,2)   
    complex*16 :: j1ja(4,4),j1jb(4,4), j1jc(4,4),j1jd(4,4),res(4,4)
    real*8 :: res_re(4,4)
-   complex*16 :: ctb,ctc ! isospin coefficients
+   complex*16 :: cta,ctb,ctc,ctd ! isospin coefficients
 
    complex*16 :: J_mu(2,2,4)   
    do i1=1,2
       do f1=1,2
          do i=1,4
-            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1(:,:,i),up1(i1,:)))
+            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
          enddo
       enddo
    enddo
@@ -466,14 +559,12 @@ end subroutine
 
 
          do i=1,4
-            !J_12a(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_a_mu(:,:,i),up1(i1,:)))
-            
+        
             Je_12a(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_a_mu(:,:,i),up1(i1,:)))
             Je_12a_dag(f1,i1,i)=conjg(Je_12a(f1,i1,i))
-            !
+            
             Je_12b(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(Je_b_mu(:,:,i),up1(i1,:)))
             Je_12b_dag(f1,i1,i)=conjg(Je_12b(f1,i1,i))
-
 
             Je_12c(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(Je_c_mu(:,:,i),up2(i1,:)))
             Je_12c_dag(f1,i1,i)=conjg(Je_12c(f1,i1,i))
@@ -481,50 +572,52 @@ end subroutine
             Je_12d(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(Je_d_mu(:,:,i),up2(i1,:)))
             Je_12d_dag(f1,i1,i)=conjg(Je_12d(f1,i1,i))
 
-
          enddo
       enddo
    enddo   
+
    j1ja=czero
    j1jb=czero
    j1jc=czero
    j1jd=czero
+
    do i=1,4
       do j=1,4
          do i1=1,2
             do f1=1,2
                do i2=1,2
+                  j1ja(i,j)=j1ja(i,j)+Je_12a_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2)
                   j1jb(i,j)=j1jb(i,j)+Je_12b_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2)
                   j1jc(i,j)=j1jc(i,j)+Je_12c_dag(f1,i2,i)*J_mu(f1,i1,j)*Je_1_dag(i2,i1)
+                  j1jd(i,j)=j1jd(i,j)+Je_12d_dag(f1,i2,i)*J_mu(f1,i1,j)*Je_1_dag(i2,i1)
                enddo
             enddo
          enddo
       enddo
    enddo
 
+   cta=czero
    ctb=czero
    ctc=czero
+   ctd=czero
 
    if(nuc1_iso.eq.1) then
         nuc1_isospinor=up(:)
    else 
         nuc1_isospinor=down(:)
    endif
-   
+
    do it2=1,2
-    ctb = ctb + IDeltaB(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1_isospinor)
-    ctc = ctc + IDeltaC(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1_isospinor)
+    cta = cta + IDeltaADag_EM(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
+    ctb = ctb + IDeltaBDag_EM(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
+    ctc = ctc + IDeltaCDag_EM(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
+    ctd = ctd + IDeltaDDag_EM(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
    enddo
 
 
-   res=j1jb(:,:)*ctb +j1jc(:,:)*ctc
+   res=j1ja(:,:)*cta + j1jb(:,:)*ctb + j1jc(:,:)*ctc + j1jd(:,:)*ctd
      
    res_re = res + conjg(res)
-
-   res_re(1,4)=(w/q(4))*res_re(1,1)
-   res_re(4,1)=(w/q(4))*res_re(1,1)
-   res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
 
    return
  end subroutine det_J1Jdel_exc
@@ -549,7 +642,7 @@ subroutine det_JdelJdel_exc(res_re)
    do i1=1,2
       do f1=1,2
          do i=1,4
-            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1(:,:,i),up1(i1,:)))
+            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
          enddo
       enddo
    enddo
@@ -611,18 +704,87 @@ subroutine det_JdelJdel_exc(res_re)
      
    res_re = res + conjg(res)
 
-  ! res_re(1,4)=(w/q(4))*res_re(1,1)
-  ! res_re(4,1)=(w/q(4))*res_re(1,1)
-  ! res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
-
    return
  end subroutine det_JdelJdel_exc
 
 
+subroutine det_J1Jpi_dir(res_re,nuc1_iso)
+   implicit none
+   integer*4 :: i1,f1,i2,f2,i,j,it1,it2
+   integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
+   complex*16 :: nuc1_isospinor(2)
+   real*8 :: r_cc,r_cl,r_ll,r_t,r_tp
+   complex*16 :: J_2(2,2),J_2_dag(2,2)
+   complex*16 :: J_1(2,2),J_1_dag(2,2),J_s2(2,2,4),J_s2_dag(2,2,4)
+   complex*16 :: J_f(2,2,4),J_s1(2,2,4),J_f_dag(2,2,4),J_s1_dag(2,2,4)
+   complex*16 :: J_p2(2,2,4),J_p2_dag(2,2,4),J_p1(2,2,4),J_p1_dag(2,2,4)
+   complex*16 :: j1jf(4,4),j1js(4,4),res(4,4)   
+   real*8 :: res_re(4,4)
 
+   complex*16 :: ctf,cts
+   
+   complex*16 :: J_mu(2,2,4)   
+   
+   
+   do i1=1,2
+      do f1=1,2
+        do i2=1,2
+             J_1(f1,i1)=sum(ubarpp1(f1,:)*matmul(Pi_k1(:,:),up1(i1,:)))
+             J_1_dag(f1,i1)=conjg(J_1(f1,i1))
+             J_2(i2,i2)=sum(ubarpp2(i2,:)*matmul(Pi_k2(:,:),up2(i2,:)))
+             J_2_dag(i2,i2)=conjg(J_2(i2,i2))
+             do i=1,4
+                J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
+                J_f(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_pif(:,:,i),up1(i1,:)))
+                J_f_dag(f1,i1,i)=conjg(J_f(f1,i1,i))
+                J_s1(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_sea1(:,:,i),up1(i1,:)))
+                J_s1_dag(f1,i1,i)=conjg(J_s1(f1,i1,i))
+                J_s2(i2,i2,i)=sum(ubarpp2(i2,:)*matmul(J_sea2(:,:,i),up2(i2,:)))
+                J_s2_dag(i2,i2,i)=conjg(J_s2(i2,i2,i))
+             enddo
+          enddo
+       enddo  
+   enddo 
 
-    subroutine det_J1Jpi_exc(res_re,nuc1_iso)
+   j1jf=czero
+   j1js=czero
+
+   do i=1,4
+      do j=1,4
+         do i1=1,2
+            do f1=1,2
+               do i2=1,2
+                  j1jf(i,j)=j1jf(i,j)+J_f_dag(f1,i1,i)*J_mu(f1,i1,j)*J_2_dag(i2,i2)
+                  j1js(i,j)=j1js(i,j)+J_s1_dag(f1,i1,i)*J_mu(f1,i1,j)*J_2_dag(i2,i2) &
+                          &  +J_1_dag(f1,i1)*J_s2_dag(i2,i2,i)*J_mu(f1,i1,j)
+                  enddo
+            enddo
+         enddo
+      enddo
+   enddo
+
+   ctf=czero
+   cts=czero
+
+   if(nuc1_iso.eq.1) then
+        nuc1_isospinor=up(:)
+   else 
+        nuc1_isospinor=down(:)
+   endif
+    
+   do it2=1,2
+    ctf = ctf - Ivz(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:))
+    cts = cts - Ivz(nuc1_isospinor, t2(it2,:), nuc1_isospinor, t2(it2,:))
+   enddo
+
+   res=j1jf(:,:)*ctf +j1js(:,:)*cts
+   
+   res_re = res + conjg(res)
+
+   return
+ end subroutine det_J1Jpi_dir
+
+subroutine det_J1Jpi_exc(res_re,nuc1_iso)
    implicit none
    integer*4 :: i1,f1,i2,f2,i,j,it1,it2
    integer*4 :: nuc1_iso !This is the isospin of the struck nucleon
@@ -651,7 +813,7 @@ subroutine det_JdelJdel_exc(res_re)
          Je_2(f1,i1)=sum(ubarpp1(f1,:)*matmul(Pi_k2e(:,:),up2(i1,:)))
          Je_2_dag(f1,i1)=conjg(Je_2(f1,i1))
          do i=1,4
-            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1(:,:,i),up1(i1,:)))
+            J_mu(f1,i1,i)=sum(ubarpp1(f1,:)*matmul(J_1b(:,:,i),up1(i1,:)))
             Je_f(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_pif(:,:,i),up1(i1,:)))
             Je_f_dag(f1,i1,i)=conjg(Je_f(f1,i1,i))
             Je_s1(f1,i1,i)=sum(ubarpp2(f1,:)*matmul(J_sea1(:,:,i),up1(i1,:)))
@@ -664,18 +826,17 @@ subroutine det_JdelJdel_exc(res_re)
    j1jf=czero
    j1js=czero
    do i=1,4
-      !do j=1,4
+      do j=1,4
          do i1=1,2
             do f1=1,2
                do i2=1,2
-                  j=i
                   j1jf(i,j)=j1jf(i,j)+Je_f_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2)
                   j1js(i,j)=j1js(i,j)+Je_s1_dag(i2,i1,i)*J_mu(f1,i1,j)*Je_2_dag(f1,i2) &
                           &  +Je_1_dag(i2,i1)*Je_s2_dag(f1,i2,i)*J_mu(f1,i1,j)
                   enddo
             enddo
          enddo
-      !enddo
+      enddo
    enddo
 
    ctf=czero
@@ -688,33 +849,16 @@ subroutine det_JdelJdel_exc(res_re)
    endif
    
    do it2=1,2
-    ctf = ctf - Iv(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1_isospinor) !Want to compute matrix element of (Iv^{dag} = -Iv)
-    cts = cts - Iv(nuc1_isospinor,t2(it2,:),t2(it2,:),nuc1_isospinor) !Want to compute matrix element of (Iv^{dag} = -Iv)
+    ctf = ctf - Ivz(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
+    cts = cts - Ivz(t2(it2,:),nuc1_isospinor, nuc1_isospinor, t2(it2,:))
    enddo
 
-   j1jf(:,:)=j1jf(:,:)*(ctf)
-   j1js(:,:)=j1js(:,:)*(cts)
-
-   res=j1jf(:,:) +j1js(:,:)
+   res=j1jf(:,:)*ctf +j1js(:,:)*cts
    
    res_re = res + conjg(res)
 
-   res_re(1,4)=(w/q(4))*res_re(1,1)
-   res_re(4,1)=(w/q(4))*res_re(1,1)
-   res_re(4,4)=(w/q(4))**2*res_re(1,1)
-
    return
  end subroutine det_J1Jpi_exc
-
-
-
-
-
-
-
-
-
-
 
    subroutine det_J1Jpi_exc_nr(gd,gev,res_re)
    implicit none
@@ -760,7 +904,7 @@ subroutine det_JdelJdel_exc(res_re)
    enddo   
    j1jf=czero
    j1js=czero
-   do i=2,4
+   do i=1,4
       !do j=1,4
          do i1=1,2
             do f1=1,2
@@ -863,77 +1007,130 @@ subroutine delta_se(pd2,width,pot)
    return
 end subroutine
 
-function Iv(it1,it2,itp1,itp2)
+function Ivz(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: Iv
+    complex*16 :: Ivz
 
-    Iv = ci*(me(1,it1,itp1)*me(2,it2,itp2) - me(2,it1,itp1)*me(1,it2,itp2))
+    Ivz = ci*(me(1,it1,itp1)*me(2,it2,itp2) - me(2,it1,itp1)*me(1,it2,itp2))
 
     return
-end function Iv
+end function Ivz
 
-
-function IDeltaA(it1,it2,itp1,itp2)
+function IDeltaA_EM(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaA, c
+    complex*16 :: IDeltaA_EM, c
 
-    c = me(3,it2,itp2)
+    c = me(3,it2,itp2)*iden(it1,itp1)
 
-    IDeltaA = (2.*c/3.) + (Iv(it1,it2,itp1,itp2)/3.)
+    IDeltaA_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
 
     return
-end function IDeltaA
+end function IDeltaA_EM
 
-function IDeltaB(it1,it2,itp1,itp2)
+function IDeltaADag_EM(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaB, c
+    complex*16 :: IDeltaADag_EM, c
 
-    c = me(3,it2,itp2) 
+    c = me(3,it2,itp2)*iden(it1,itp1)
 
-    IDeltaB = (2.*c/3.) - (Iv(it1,it2,itp1,itp2)/3.) 
+    IDeltaADag_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
 
     return
-end function IDeltaB
+end function IDeltaADag_EM
 
-function IDeltaC(it1,it2,itp1,itp2)
+function IDeltaB_EM(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaC, c
+    complex*16 :: IDeltaB_EM, c
 
-    c = me(3,it1,itp1) 
+    c = me(3,it2,itp2)*iden(it1,itp1) 
 
-    IDeltaC = (2.*c/3.) - (Iv(it1,it2,itp1,itp2)/3.)
+    IDeltaB_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
 
     return
-end function IDeltaC
+end function IDeltaB_EM
 
-function IDeltaD(it1,it2,itp1,itp2)
+function IDeltaBDag_EM(it1,it2,itp1,itp2)
     implicit none
     complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
-    complex*16 :: IDeltaD, c
+    complex*16 :: IDeltaBDag_EM, c
 
-    c = me(3,it1,itp1) 
+    c = me(3,it2,itp2)*iden(it1,itp1)
 
-    IDeltaD = (2.*c/3.) + (Iv(it1,it2,itp1,itp2)/3.) 
+    IDeltaBDag_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
 
     return
-end function IDeltaD
+end function IDeltaBDag_EM
+
+function IDeltaC_EM(it1,it2,itp1,itp2)
+    implicit none
+    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
+    complex*16 :: IDeltaC_EM, c
+
+    c = me(3,it1,itp1)*iden(it2,itp2) 
+
+    IDeltaC_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.)
+
+    return
+end function IDeltaC_EM
+
+function IDeltaCDag_EM(it1,it2,itp1,itp2)
+    implicit none
+    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
+    complex*16 :: IDeltaCDag_EM, c
+
+    c = me(3,it1,itp1)*iden(it2,itp2)  
+
+    IDeltaCDag_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.)
+
+    return
+end function IDeltaCDag_EM
+
+function IDeltaD_EM(it1,it2,itp1,itp2)
+    implicit none
+    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
+    complex*16 :: IDeltaD_EM, c
+
+    c = me(3,it1,itp1)*iden(it2,itp2)  
+
+    IDeltaD_EM = (2.*c/3.) - (Ivz(it1,it2,itp1,itp2)/3.) 
+
+    return
+end function IDeltaD_EM
+
+function IDeltaDDag_EM(it1,it2,itp1,itp2)
+    implicit none
+    complex*16 :: it1(2),it2(2),itp1(2),itp2(2)
+    complex*16 :: IDeltaDDag_EM, c
+
+    c = me(3,it1,itp1)*iden(it2,itp2)  
+
+    IDeltaDDag_EM = (2.*c/3.) + (Ivz(it1,it2,itp1,itp2)/3.) 
+
+    return
+end function IDeltaDDag_EM
+
 
 function me(i,it,itp)
     implicit none
     integer*4 :: i
-    complex*16 :: me, it(2),itp(2)
+    complex*16 :: me, it(2),itp(2), matrix(2)
 
-    me = sum(it(:)*matmul(sig(i,:,:),itp))
-
+    me = sum(itp(:)*matmul(sig(i,:,:),it))
     return
 end function me
 
 
+function iden(it,itp)
+    implicit none 
+    complex*16:: iden, it(2),itp(2)
 
+    iden = sum(itp(:)*matmul(id,it))
+    return
+end function iden
 
 end module dirac_matrices
 
